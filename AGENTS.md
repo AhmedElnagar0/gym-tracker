@@ -39,3 +39,17 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## Project rules (gym tracker)
+
+Read `docs/PLAN.md` before starting a milestone, and `README.md` for the data conventions.
+
+- **SDK is pinned to what App Store Expo Go supports (57).** Never upgrade the Expo SDK until the user confirms the Expo Go on their iPhone supports the new version.
+- **Expo Go only.** Use only modules included in Expo Go. Anything needing a development build is out of scope.
+- **Database:** `src/db/schema.ts` is the only schema definition. Workflow: edit schema → `npm run db:generate` → read the SQL (table rebuilds, no commas in index expressions) → `npm run check:db`. Never edit or regenerate a migration that has run on the phone.
+- All reads/writes go through `src/repo/`. Screens never run SQL.
+- Timestamps are unix seconds via `nowUnix()`. Weights follow `src/domain/conventions.ts`.
+- No Zustand or other global store: SQLite is the single source of truth, and every edit is written immediately.
+- Pure logic goes in `src/domain/` with Jest tests.
+- Done means: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:db` all pass.
+- **Git:** this is a personal, public repo. Commit only with the repo-local identity configured here (check `git config --local user.email` first), never a global or workplace identity. Keep employer, client and machine-specific details out of files and commit messages.

@@ -1,56 +1,76 @@
-# Welcome to your Expo app 👋
+# Gym Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal, local-only workout tracker for iPhone, built with Expo (SDK 57) and run in
+**Expo Go**. No backend, no accounts, no cloud sync: all data lives in SQLite on the phone.
 
-## Get started
+- Plan and milestones: [docs/PLAN.md](docs/PLAN.md)
+- Gym-launch test (M0 gate): [docs/GATE-TEST.md](docs/GATE-TEST.md)
+- Deliberately postponed ideas: [LATER.md](LATER.md)
 
-1. Install dependencies
+## Run it on your iPhone
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+You need Node.js, Expo Go from the App Store, and a free **personal** Expo account
+(Expo Go and the CLI must be signed in to the same account).
 
 ```bash
-npm run reset-project
+npm install
+npx expo login
+npm run phone
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Scan the QR code with the iPhone Camera app.
 
-### Other setup steps
+`npm run phone` is `expo start --tunnel --port 8083`:
+- **Tunnel:** on restricted networks (workplace or guest Wi-Fi) the phone can't reach the
+  laptop directly, and scanning just times out. Expo relays the connection through ngrok
+  (`@expo/ngrok`, a dev dependency).
+- **Port 8083:** the default 8081 is taken by another application on the development machine.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+On a home network where phone and laptop share the same Wi-Fi, plain `npx expo start` is faster.
 
-## Learn more
+## Checks (run all four before calling anything done)
 
-To learn more about developing your project with Expo, look at the following resources:
+| Command | What it checks |
+|---|---|
+| `npm run typecheck` | TypeScript types |
+| `npm run lint` | ESLint (Expo config) |
+| `npm test` | Unit tests for pure logic and seed data (Jest) |
+| `npm run check:db` | Applies the real migrations to a real SQLite engine and tests every constraint |
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Data conventions
 
-## Join the community
+Changing any of these later silently changes the meaning of existing history.
 
-Join our community of developers creating universal apps.
+| Topic | Rule |
+|---|---|
+| Units | kg only. `weight_kg` stores exactly what was typed; it is never rounded on save. |
+| Load basis | Set by the exercise's equipment and shown next to the input. Barbell, EZ bar, trap bar, Smith machine, plate-loaded machine: **kg per side, plates only, bar excluded**. Dumbbell, kettlebell: kg per implement. Machine (pin stack), cable: the stack number. Bodyweight: added load, 0 = bodyweight only. See `src/domain/conventions.ts`. |
+| Locked equipment | An exercise's equipment can't change once it has logged sets. |
+| Unilateral | Reps are per side. |
+| Timestamps | Unix **seconds**. Use `nowUnix()` from `src/domain/time.ts`, never raw `Date.now()` (milliseconds). |
+| IDs | Text UUID v4 via `newId()` (`src/db/ids.ts`). Seed exercises have fixed IDs. |
+| Variants | One level deep. Parents can be logged directly. Variants inherit muscle group and mechanic. |
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Changing the database schema
+
+1. Edit `src/db/schema.ts`, the only schema definition.
+2. `npm run db:generate` creates a new `drizzle/NNNN_*.sql` migration.
+3. Read the generated SQL. Watch for table rebuilds (`__new_` tables) and for index
+   expressions containing commas (drizzle-kit splits them and writes broken SQL).
+4. `npm run check:db`, and add checks for the new constraints to `scripts/check-migrations.mjs`.
+
+Never edit or delete a migration that has already run on the phone. At startup the app
+snapshots the database before migrating, migrates with foreign keys off, verifies with
+`PRAGMA foreign_key_check`, then switches foreign keys on (`src/db/init.ts`).
+
+## Layout
+
+```
+src/app/      screens (Expo Router; every file is a route)
+src/db/       schema, connection, startup, seed data
+src/repo/     all reads and writes; screens never run SQL directly
+src/domain/   pure TypeScript logic, unit-tested
+src/components, src/hooks, src/theme.ts
+drizzle/      generated migrations (never hand-edit)
+scripts/      check-migrations.mjs
+```

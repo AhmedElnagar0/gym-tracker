@@ -1,12 +1,15 @@
 {
   "expo": {
-    "name": "gym-tracker",
+    "name": "Gym Tracker",
     "slug": "gym-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gymtracker",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "ios": {
       "icon": "./assets/expo.icon"
     },
@@ -20,7 +23,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "server",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -32,11 +35,22 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "917526a2-0135-449b-b090-89b4e09da964"
+      }
+    },
+    "owner": "cow123",
+    "updates": {
+      "url": "https://u.expo.dev/917526a2-0135-449b-b090-89b4e09da964"
     }
   }
 }
