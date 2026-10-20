@@ -34,7 +34,7 @@ On a home network where phone and laptop share the same Wi-Fi, plain `npx expo s
 |---|---|
 | `npm run typecheck` | TypeScript types |
 | `npm run lint` | ESLint (Expo config) |
-| `npm test` | Unit tests for pure logic and seed data (Jest) |
+| `npm test` | Jest: pure logic, seed data, and the repo layer against real SQLite (sql.js) |
 | `npm run check:db` | Applies the real migrations to a real SQLite engine and tests every constraint |
 
 ## Data conventions
@@ -69,6 +69,8 @@ snapshots the database before migrating, migrates with foreign keys off, verifie
 src/app/      screens (Expo Router; every file is a route)
 src/db/       schema, connection, startup, seed data
 src/repo/     all reads and writes; screens never run SQL directly
+src/routes.ts every in-app link
+src/test-utils/  test-only helpers (in-memory SQLite built from the real migrations)
 src/domain/   pure TypeScript logic, unit-tested
 src/components, src/hooks, src/theme.ts
 drizzle/      generated migrations (never hand-edit)

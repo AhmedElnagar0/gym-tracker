@@ -51,5 +51,8 @@ Read `docs/PLAN.md` before starting a milestone, and `README.md` for the data co
 - Timestamps are unix seconds via `nowUnix()`. Weights follow `src/domain/conventions.ts`.
 - No Zustand or other global store: SQLite is the single source of truth, and every edit is written immediately.
 - Pure logic goes in `src/domain/` with Jest tests.
+- Repo functions take the database as their first argument (`AppDb`, `src/db/types.ts`) and are tested against real SQLite via `createTestDb()` (sql.js, `src/test-utils/test-db.ts`). Don't import `@/db/client` in repo code.
+- Build every in-app link with `src/routes.ts`. Expo Router's typed routes are OFF (`app.json`): on Windows its generator lists every file under `src/` as a route and breaks `tsc`.
+- `useLiveQuery` only re-runs when the query's main table changes; for joins, watch every table involved.
 - Done means: `npm run typecheck`, `npm run lint`, `npm test`, `npm run check:db` all pass.
 - **Git:** this is a personal, public repo. Commit only with the repo-local identity configured here (check `git config --local user.email` first), never a global or workplace identity. Keep employer, client and machine-specific details out of files and commit messages.

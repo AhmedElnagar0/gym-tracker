@@ -2,7 +2,7 @@
 
 Status: M0 done on the iPhone, 2026-10-20. Checkpoint passed (`DB ok · FK on · 32 exercises`,
 still 32 after force-quit). Gym-launch gate passed, so **Path A is confirmed** (results in §1).
-Next: M1.
+M1 done: all nine checkpoint steps passed on the iPhone, 2026-10-20. Next: M2 (backup and restore).
 Decisions so far: Path A (Expo SDK 57 + App Store Expo Go), leaf-only rule relaxed,
 export/restore in MVP, kg only, Zustand dropped.
 
@@ -174,6 +174,11 @@ No Zustand: SQLite is the single source of truth, and every edit is written imme
 so force-quitting mid-workout loses nothing.
 Install Expo packages only with `npx expo install` (ignore Drizzle docs' `expo-sqlite@next`).
 
+Live data: Drizzle's `useLiveQuery` re-runs only when the query's **main table** changes
+(it listens with `addDatabaseChangeListener` and compares one table name), and returns `[]`
+before the first result. Single-table screens (catalogue) use it directly. M3's logging screens
+join workouts, workout_exercises and sets, so they need a small hook that watches several tables.
+
 Startup (`src/db/init.ts`): WAL on → foreign keys OFF → snapshot if migrations are pending →
 migrate → `PRAGMA foreign_key_check` → foreign keys ON → seed once (tracked in
 `PRAGMA user_version`, so deleted seed exercises are not re-created). Foreign keys must be off
@@ -194,7 +199,8 @@ src/
     workout/[id]/add-exercise.tsx        # picker modal
     workout/[id]/exercise/[weId].tsx     # logging screen: last time | this time
     exercise/new.tsx                     # create (?parentId= → variant)
-    exercise/[id]/index.tsx              # Details | History segments, edit, archive, delete
+    exercise/[id]/index.tsx              # details, variants, edit, archive, delete (History: M5)
+    exercise/[id]/edit.tsx               # edit form
     exercise/[id]/photo.tsx              # full-screen photo
     split/new.tsx                        # blank or from template
     split/[id]/index.tsx                 # days, schedule mode, weekday mapping, activate
