@@ -2,7 +2,9 @@
 
 Status: M0 done on the iPhone, 2026-10-20. Checkpoint passed (`DB ok · FK on · 32 exercises`,
 still 32 after force-quit). Gym-launch gate passed, so **Path A is confirmed** (results in §1).
-M1 done: all nine checkpoint steps passed on the iPhone, 2026-10-20. Next: M2 (backup and restore).
+M1 done: all nine checkpoint steps passed on the iPhone, 2026-10-20.
+M2 done, 2026-10-20: export to iCloud Drive, restore round trip, wrong-file rejection, and
+**delete Expo Go → reinstall → restore** all passed on the iPhone. Next: M3 (ad-hoc workout logging).
 Decisions so far: Path A (Expo SDK 57 + App Store Expo Go), leaf-only rule relaxed,
 export/restore in MVP, kg only, Zustand dropped.
 
@@ -258,7 +260,12 @@ Step-by-step: docs/GATE-TEST.md.
 - ✅ Add a variant from a parent; a variant has no "Add variant" button; duplicate names are rejected.
 - ✅ Search "row" finds every row. Edits survive a relaunch. Archive/unarchive works.
 
-**M2 Backup and restore** (before any real data exists).
+**M2 Backup and restore** (before any real data exists). Built: the export zip is a byte-level
+snapshot of the database, switched out of WAL mode (verified: SQLite can't reopen a WAL-flagged
+image), plus `manifest.json` and `photos/`. Restore checks the zip, manifest, schema history,
+integrity and page size before changing anything, keeps a `pre-restore-<ts>.db` safety copy,
+copies the backup in with SQLite's backup API, runs newer migrations, and puts the safety copy
+back if any step fails. "Last backup" is stored per device in `expo-sqlite/kv-store`.
 - ✅ Export → Save to Files → iCloud Drive; the zip is visible in the Files app.
 - ✅ Delete a custom exercise, restore → it's back.
 - ✅ **Delete Expo Go, reinstall, open the app, restore → catalogue intact.**

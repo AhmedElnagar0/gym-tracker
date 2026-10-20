@@ -20,7 +20,14 @@ export function initDatabase(): Promise<void> {
 
 async function runInit(): Promise<void> {
   sqlite.execSync('PRAGMA journal_mode = WAL;');
+  await prepareDatabase();
+}
 
+/**
+ * Migrates, verifies, enables foreign keys and seeds. Runs at startup and again after
+ * a backup is restored (the backup may come from an older schema).
+ */
+export async function prepareDatabase(): Promise<void> {
   // Foreign keys stay OFF while migrating. Drizzle runs migrations inside a transaction,
   // where SQLite ignores PRAGMA foreign_keys, and a migration that rebuilds a table
   // would otherwise cascade-delete child rows. This is SQLite's documented procedure:
@@ -56,6 +63,11 @@ export function foreignKeysEnabled(): boolean {
   return sqlite.getFirstSync<{ foreign_keys: number }>('PRAGMA foreign_keys;')?.foreign_keys === 1;
 }
 
+/** This app's migrations, oldest first, e.g. ["0000_init"]. */
+export function migrationTags(): string[] {
+  return migrations.journal.entries.map((e) => e.tag);
+}
+
 export function appliedMigrationCount(): number {
   const hasTable = sqlite.getFirstSync<{ n: number }>(
     `SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'`,
@@ -64,13 +76,18 @@ export function appliedMigrationCount(): number {
   return sqlite.getFirstSync<{ n: number }>('SELECT count(*) AS n FROM __drizzle_migrations')?.n ?? 0;
 }
 
-// Copies the live database into a new file next to it, e.g. "pre-migration-1760971200.db".
-// This guards against a bad migration; it does NOT survive deleting Expo Go (see docs/PLAN.md §2).
-async function snapshot(reason: string): Promise<void> {
-  const dest = await openDatabaseAsync(`${reason}-${nowUnix()}.db`);
+/**
+ * Copies the live database into a new file next to it, e.g. "pre-restore-1760971200.db",
+ * and returns that file name. Guards against a bad migration or restore; it does NOT
+ * survive deleting Expo Go (that's what exported backups are for).
+ */
+export async function snapshot(reason: string): Promise<string> {
+  const name = `${reason}-${nowUnix()}.db`;
+  const dest = await openDatabaseAsync(name);
   try {
     await backupDatabaseAsync({ sourceDatabase: sqlite, destDatabase: dest });
   } finally {
     await dest.closeAsync();
   }
+  return name;
 }

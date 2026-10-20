@@ -27,3 +27,5 @@ Ideas deliberately kept out of the MVP. Don't build these until they're moved in
 - Multiple photos per exercise
 - Standing per-exercise setup note (separate from per-session notes)
 - Standalone app build (requires Apple Developer Program)
+- Prune old on-phone safety copies (`pre-restore-*.db`, `pre-migration-*.db` in the SQLite folder)
+- Know whether an export was actually saved (the iOS share sheet doesn't report it)

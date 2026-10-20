@@ -1,11 +1,12 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { initDatabase } from '@/db/init';
 import { useColors } from '@/hooks/use-colors';
+import { ReloadDataContext } from '@/hooks/use-reload-data';
 import { fontSize, spacing } from '@/theme';
 
 // Keep the splash screen up until the database is ready, so no screen can query it early.
@@ -16,6 +17,9 @@ type InitState = { status: 'loading' } | { status: 'ready' } | { status: 'error'
 export default function RootLayout() {
   const scheme = useColorScheme();
   const [state, setState] = useState<InitState>({ status: 'loading' });
+  // Changing the navigator's key remounts every screen (used after a restore).
+  const [generation, setGeneration] = useState(0);
+  const reloadData = useCallback(() => setGeneration((g) => g + 1), []);
 
   useEffect(() => {
     initDatabase()
@@ -31,10 +35,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <StatusBar style="auto" />
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
+      <ReloadDataContext.Provider value={reloadData}>
+        <StatusBar style="auto" />
+        <Stack key={generation}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        </Stack>
+      </ReloadDataContext.Provider>
     </ThemeProvider>
   );
 }

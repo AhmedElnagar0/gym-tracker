@@ -5,6 +5,7 @@ import type { Href } from 'expo-router';
 // every file under src/ as a route and broke type-checking.)
 
 export const routes = {
+  backup: (): Href => '/backup',
   newExercise: (): Href => '/exercise/new',
   newVariant: (parentId: string): Href => ({ pathname: '/exercise/new', params: { parentId } }),
   exercise: (id: string): Href => ({ pathname: '/exercise/[id]', params: { id } }),
