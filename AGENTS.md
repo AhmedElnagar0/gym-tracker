@@ -47,6 +47,7 @@ Read `docs/PLAN.md` before starting a milestone, and `README.md` for the data co
 - **SDK is pinned to what App Store Expo Go supports (57).** Never upgrade the Expo SDK until the user confirms the Expo Go on their iPhone supports the new version.
 - **Expo Go only.** Use only modules included in Expo Go. Anything needing a development build is out of scope.
 - **Database:** `src/db/schema.ts` is the only schema definition. Workflow: edit schema → `npm run db:generate` → read the SQL (table rebuilds, no commas in index expressions) → `npm run check:db`. Never edit or regenerate a migration that has run on the phone.
+- **Schema changes are additive only:** new tables, or new columns that are nullable or have a default. Never rename, drop or tighten a column. Expo Go can launch an older cached copy of the app offline against a database a newer version already migrated, and that older code must keep working.
 - All reads/writes go through `src/repo/`. Screens never run SQL.
 - Timestamps are unix seconds via `nowUnix()`. Weights follow `src/domain/conventions.ts`.
 - No Zustand or other global store: SQLite is the single source of truth, and every edit is written immediately.

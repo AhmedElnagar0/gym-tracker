@@ -13,7 +13,7 @@ import {
 import { loadLabel } from '@/domain/conventions';
 import { type DraftErrors, type ExerciseDraft, NAME_MAX_LENGTH, VARIANT_LABEL_MAX_LENGTH } from '@/domain/validation';
 import { useColors } from '@/hooks/use-colors';
-import type { Result } from '@/repo/exercises';
+import type { Result } from '@/repo/result';
 import { fontSize, spacing, TAP_TARGET } from '@/theme';
 
 import { Button } from './ui/button';

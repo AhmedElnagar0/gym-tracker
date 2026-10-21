@@ -29,7 +29,24 @@ export function formatDaysAgo(then: number, now: number): string {
   return `${days} days ago`;
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+/** "17:05", in local time. */
+export function formatClock(unix: number): string {
+  const d = fromUnix(unix);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** A weight without float noise or trailing zeros: 60 → "60", 62.5 → "62.5". */
+export function formatWeight(kg: number): string {
+  return String(Math.round(kg * 100) / 100);
+}
+
+/** "60 × 8". */
+export function formatSet(weightKg: number, reps: number): string {
+  return `${formatWeight(weightKg)} × ${reps}`;
+}
+
+/** "1 set", "3 sets". */
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** "32 exercises · 4 workouts · 61 sets · 1 split". */
 export function describeCounts(c: BackupCounts): string {

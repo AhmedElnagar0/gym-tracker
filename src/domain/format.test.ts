@@ -1,4 +1,13 @@
-import { backupIsStale, calendarDaysBetween, describeCounts, formatDateTime, formatDaysAgo } from './format';
+import {
+  backupIsStale,
+  calendarDaysBetween,
+  describeCounts,
+  formatClock,
+  formatDateTime,
+  formatDaysAgo,
+  formatSet,
+  formatWeight,
+} from './format';
 import { toUnix } from './time';
 
 const at = (y: number, m: number, d: number, h = 12, min = 0) => toUnix(new Date(y, m - 1, d, h, min));
@@ -31,6 +40,22 @@ describe('backupIsStale', () => {
   it('is stale from 7 calendar days', () => {
     expect(backupIsStale(at(2026, 10, 14), now)).toBe(false);
     expect(backupIsStale(at(2026, 10, 13), now)).toBe(true);
+  });
+});
+
+describe('weights, sets and clock times', () => {
+  it('formats weights without float noise or trailing zeros', () => {
+    expect(formatWeight(60)).toBe('60');
+    expect(formatWeight(62.5)).toBe('62.5');
+    expect(formatWeight(0.1 + 0.2)).toBe('0.3');
+  });
+
+  it('formats a set as weight × reps', () => {
+    expect(formatSet(62.5, 6)).toBe('62.5 × 6');
+  });
+
+  it('formats a clock time with zero padding', () => {
+    expect(formatClock(at(2026, 10, 20, 7, 5))).toBe('07:05');
   });
 });
 

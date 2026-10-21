@@ -200,3 +200,4 @@ export const sets = sqliteTable(
 
 export type Exercise = typeof exercises.$inferSelect;
 export type NewExercise = typeof exercises.$inferInsert;
+export type Workout = typeof workouts.$inferSelect;

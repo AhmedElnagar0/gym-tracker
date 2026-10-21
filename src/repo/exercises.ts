@@ -7,16 +7,13 @@ import { canChangeEquipment, deleteBlocker, type ExerciseUsage } from '@/domain/
 import { nowUnix } from '@/domain/time';
 import { type DraftErrors, type ExerciseDraft, validateExerciseDraft } from '@/domain/validation';
 
+import { fail, type Result as BaseResult } from './result';
+
 // Every read and write of exercises. Screens call these; they never build SQL themselves.
 // Writes return a Result instead of throwing, so screens can show the message.
 
-export type Result<T = void> = { ok: true; value: T } | { ok: false; error: string; fields?: DraftErrors };
-
-const fail = (error: string, fields?: DraftErrors): { ok: false; error: string; fields?: DraftErrors } => ({
-  ok: false,
-  error,
-  fields,
-});
+/** A Result whose field errors are the exercise form's fields. */
+type Result<T = void> = BaseResult<T, DraftErrors>;
 
 /** The query the catalogue screen watches with useLiveQuery. */
 export function catalogueQuery(db: AppDb) {

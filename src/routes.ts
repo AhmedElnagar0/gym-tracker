@@ -10,4 +10,10 @@ export const routes = {
   newVariant: (parentId: string): Href => ({ pathname: '/exercise/new', params: { parentId } }),
   exercise: (id: string): Href => ({ pathname: '/exercise/[id]', params: { id } }),
   editExercise: (id: string): Href => ({ pathname: '/exercise/[id]/edit', params: { id } }),
+  workout: (id: string): Href => ({ pathname: '/workout/[id]', params: { id } }),
+  addExerciseToWorkout: (workoutId: string): Href => ({ pathname: '/workout/[id]/add-exercise', params: { id: workoutId } }),
+  workoutExercise: (workoutId: string, workoutExerciseId: string): Href => ({
+    pathname: '/workout/[id]/exercise/[weId]',
+    params: { id: workoutId, weId: workoutExerciseId },
+  }),
 };

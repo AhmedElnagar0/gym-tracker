@@ -1,0 +1,54 @@
+import { and, count, eq, isNull } from 'drizzle-orm';
+
+import { newId } from '@/db/ids';
+import { sets, workoutExercises, workouts, type Workout } from '@/db/schema';
+import type { AppDb } from '@/db/types';
+import { nowUnix } from '@/domain/time';
+
+import { done, fail, ok, type Result } from './result';
+
+// A workout's life: started (ended_at NULL) → finished (M4) or discarded.
+// Everything is written the moment it happens, so a force-quit loses nothing.
+
+/** The in-progress workout, if any. The database allows at most one. */
+export function getActiveWorkout(db: AppDb): Workout | undefined {
+  return db.select().from(workouts).where(isNull(workouts.endedAt)).get();
+}
+
+export function getWorkout(db: AppDb, id: string): Workout | undefined {
+  return db.select().from(workouts).where(eq(workouts.id, id)).get();
+}
+
+export function startWorkout(db: AppDb): Result<string> {
+  if (getActiveWorkout(db)) return fail('A workout is already in progress. Resume it instead.');
+  const id = newId();
+  db.insert(workouts).values({ id, startedAt: nowUnix() }).run();
+  return ok(id);
+}
+
+/** Deletes an in-progress workout and everything logged in it. */
+export function discardWorkout(db: AppDb, id: string): Result {
+  const workout = getWorkout(db, id);
+  if (!workout) return fail('This workout no longer exists.');
+  if (workout.endedAt !== null) return fail('Only a workout in progress can be discarded.');
+  // ON DELETE CASCADE removes its workout_exercises and their sets.
+  db.delete(workouts).where(and(eq(workouts.id, id), isNull(workouts.endedAt))).run();
+  return done();
+}
+
+export type WorkoutSummary = { exerciseCount: number; setCount: number };
+
+export function getWorkoutSummary(db: AppDb, id: string): WorkoutSummary {
+  const exercises = db
+    .select({ n: count() })
+    .from(workoutExercises)
+    .where(eq(workoutExercises.workoutId, id))
+    .get();
+  const logged = db
+    .select({ n: count() })
+    .from(sets)
+    .innerJoin(workoutExercises, eq(sets.workoutExerciseId, workoutExercises.id))
+    .where(eq(workoutExercises.workoutId, id))
+    .get();
+  return { exerciseCount: exercises?.n ?? 0, setCount: logged?.n ?? 0 };
+}

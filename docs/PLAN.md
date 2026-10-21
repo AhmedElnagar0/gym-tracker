@@ -271,7 +271,12 @@ back if any step fails. "Last backup" is stored per device in `expo-sqlite/kv-st
 - ✅ **Delete Expo Go, reinstall, open the app, restore → catalogue intact.**
 - ✅ Copy the zip to the laptop and open `gym.db` in Python.
 
-**M3 Ad-hoc workout logging.**
+**M3 Ad-hoc workout logging.** Built: Today → Start empty workout / Resume; workout overview;
+add-exercise picker; logging screen with the number pad (weight up to 2 decimals, reps whole),
+set type and optional RPE, edit/delete sets, a session note saved as you type, next-time switches,
+and remove-from-workout. Decisions: within a session a new set starts with the previous set's
+weight (reps always typed fresh; nothing is copied from last session). "Discard workout" is in M3
+so test workouts can be cleared; "Finish" stays in M4. Multi-table screens use `useDbQuery`.
 - ✅ Today → Empty workout → add Bench Press → overview → tap → log 3 sets with the number pad only.
 - ✅ Add a note, tick "increase weight".
 - ✅ Force-quit mid-workout → "Resume workout" appears with everything intact.

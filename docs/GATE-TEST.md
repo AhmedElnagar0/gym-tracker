@@ -58,7 +58,8 @@ Then record the results:
 | (c) Same data? | Compare the debug line in the published copy and the dev-server copy. Do they show the same database? (They may be separate; that's fine, just note it.) | ☐ same ☐ separate |
 
 **Results (2026-10-20):** (a) opens. (b) opens via Recently opened → "use cached version".
-(c) not yet checked. Decision: Path A confirmed.
+(c) checked 2026-10-21: the published copy and the dev-server copy **share one database**
+(both showed 34 exercises). Decision: Path A confirmed.
 
 **Decision:**
 - (a) fails → we switch to the static web app before any feature code (PLAN §9).
