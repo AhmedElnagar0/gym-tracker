@@ -4,6 +4,8 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/use-colors';
 import { spacing } from '@/theme';
 
+import { dismissKeyboardOnScroll } from './keyboard';
+
 /** Scrollable page body with the standard background and padding. */
 export function Screen({ children }: { children: ReactNode }) {
   const c = useColors();
@@ -11,7 +13,8 @@ export function Screen({ children }: { children: ReactNode }) {
     <ScrollView
       style={{ backgroundColor: c.background }}
       contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic">
+      contentInsetAdjustmentBehavior="automatic"
+      {...dismissKeyboardOnScroll}>
       {children}
     </ScrollView>
   );

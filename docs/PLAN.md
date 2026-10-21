@@ -4,7 +4,9 @@ Status: M0 done on the iPhone, 2026-10-20. Checkpoint passed (`DB ok · FK on ·
 still 32 after force-quit). Gym-launch gate passed, so **Path A is confirmed** (results in §1).
 M1 done: all nine checkpoint steps passed on the iPhone, 2026-10-20.
 M2 done, 2026-10-20: export to iCloud Drive, restore round trip, wrong-file rejection, and
-**delete Expo Go → reinstall → restore** all passed on the iPhone. Next: M3 (ad-hoc workout logging).
+**delete Expo Go → reinstall → restore** all passed on the iPhone.
+M3 done, 2026-10-21: all ten checkpoint steps passed; number pad size confirmed comfortable;
+keyboard now hides on drag everywhere (user request). Next: M4 (finish workouts, last time).
 Decisions so far: Path A (Expo SDK 57 + App Store Expo Go), leaf-only rule relaxed,
 export/restore in MVP, kg only, Zustand dropped.
 

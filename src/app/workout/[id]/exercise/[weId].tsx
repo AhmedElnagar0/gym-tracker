@@ -7,6 +7,7 @@ import { SetEntryPanel } from '@/components/set-entry-panel';
 import { SetRow } from '@/components/set-row';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
+import { dismissKeyboardOnScroll } from '@/components/ui/keyboard';
 import { Notice } from '@/components/ui/notice';
 import { db } from '@/db/client';
 import { exercises, sets, workoutExercises } from '@/db/schema';
@@ -98,7 +99,7 @@ export default function LogExerciseScreen() {
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        {...dismissKeyboardOnScroll}
         automaticallyAdjustKeyboardInsets>
         <Text style={[styles.meta, { color: c.textMuted }]}>
           {EQUIPMENT_LABELS[exercise.equipment]} · weights in {loadLabel(exercise.equipment)}

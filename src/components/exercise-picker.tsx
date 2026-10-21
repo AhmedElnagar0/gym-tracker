@@ -10,6 +10,7 @@ import { catalogueQuery } from '@/repo/exercises';
 import { fontSize, spacing, TAP_TARGET } from '@/theme';
 
 import { ExerciseRow } from './exercise-row';
+import { dismissKeyboardOnScroll } from './ui/keyboard';
 import { Notice } from './ui/notice';
 
 /** Searchable, grouped list of non-archived exercises. Used for workouts (and split days, M7). */
@@ -24,8 +25,7 @@ export function ExercisePicker({ onPick }: { onPick: (exercise: Exercise) => voi
       style={{ backgroundColor: c.background }}
       sections={updatedAt ? sections : []}
       keyExtractor={(row) => row.key}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      {...dismissKeyboardOnScroll}
       contentInsetAdjustmentBehavior="automatic"
       ListHeaderComponent={
         <View style={styles.header}>

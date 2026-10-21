@@ -5,6 +5,7 @@ import { SectionList, StyleSheet, Switch, Text, TextInput, View } from 'react-na
 
 import { ExerciseRow } from '@/components/exercise-row';
 import { Button } from '@/components/ui/button';
+import { dismissKeyboardOnScroll } from '@/components/ui/keyboard';
 import { Notice } from '@/components/ui/notice';
 import { db } from '@/db/client';
 import { buildCatalogue } from '@/domain/grouping';
@@ -59,8 +60,7 @@ export default function ExercisesScreen() {
       sections={loaded ? sections : []}
       keyExtractor={(row) => row.key}
       ListHeaderComponent={header}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+      {...dismissKeyboardOnScroll}
       contentInsetAdjustmentBehavior="automatic"
       renderSectionHeader={({ section }) => (
         <Text style={[styles.section, { color: c.text, backgroundColor: c.background }]}>{section.title}</Text>
