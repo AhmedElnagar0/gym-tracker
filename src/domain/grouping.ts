@@ -35,6 +35,25 @@ export type CatalogueSection<E extends CatalogueExercise = CatalogueExercise> = 
 
 export type CatalogueOptions = { query?: string; includeArchived?: boolean };
 
+export type MuscleGroupEntry = { muscle: MuscleGroup; title: string; count: number };
+
+/**
+ * The muscle groups that have at least one visible exercise, in the fixed display order,
+ * with how many exercises (variants included) each has. Archived ones are left out.
+ */
+export function muscleGroupList(all: readonly CatalogueExercise[]): MuscleGroupEntry[] {
+  const counts = new Map<MuscleGroup, number>();
+  for (const e of all) {
+    if (e.archivedAt !== null) continue;
+    counts.set(e.muscleGroup, (counts.get(e.muscleGroup) ?? 0) + 1);
+  }
+  return MUSCLE_GROUPS.filter((m) => (counts.get(m) ?? 0) > 0).map((muscle) => ({
+    muscle,
+    title: MUSCLE_GROUP_LABELS[muscle],
+    count: counts.get(muscle)!,
+  }));
+}
+
 /** Lower-cased, trimmed, single-spaced, for case-insensitive search. */
 export function normalizeQuery(query: string): string {
   return query.trim().replace(/\s+/g, ' ').toLowerCase();

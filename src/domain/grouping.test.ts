@@ -1,4 +1,4 @@
-import { buildCatalogue, type CatalogueExercise, normalizeQuery } from './grouping';
+import { buildCatalogue, type CatalogueExercise, muscleGroupList, normalizeQuery } from './grouping';
 
 const ex = (
   id: string,
@@ -101,7 +101,24 @@ describe('buildCatalogue', () => {
     });
   });
 
-  it('normalizeQuery trims, collapses spaces and lower-cases', () => {
+});
+
+describe('muscleGroupList', () => {
+  it('lists groups with exercises in the fixed order, counting variants and skipping archived', () => {
+    expect(muscleGroupList([...all, { ...curl, id: 'old', name: 'Old Curl', archivedAt: 5 }])).toEqual([
+      { muscle: 'chest', title: 'Chest', count: 5 },
+      { muscle: 'biceps', title: 'Biceps', count: 1 },
+      { muscle: 'quads', title: 'Quads', count: 1 },
+    ]);
+  });
+
+  it('is empty when there are no exercises', () => {
+    expect(muscleGroupList([])).toEqual([]);
+  });
+});
+
+describe('normalizeQuery', () => {
+  it('trims, collapses spaces and lower-cases', () => {
     expect(normalizeQuery('  Lat   PULLdown ')).toBe('lat pulldown');
   });
 });
