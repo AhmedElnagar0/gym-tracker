@@ -3,7 +3,9 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SET_TYPES, type Equipment, type SetType } from '@/domain/constants';
 import { loadLabel } from '@/domain/conventions';
-import { applyKey, type KeypadKey, REPS_RULES, WEIGHT_RULES } from '@/domain/keypad';
+import { formatSet } from '@/domain/format';
+import { applyKey, type KeypadKey, keypadNumber, REPS_RULES, WEIGHT_RULES } from '@/domain/keypad';
+import { describePlan, type NextTimePlan, sameAsLastTimeHint, type SetNumbers } from '@/domain/progression';
 import { RPE_CHOICES, SET_TYPE_LABELS, type SetDraft, type SetErrors } from '@/domain/set-input';
 import { useColors } from '@/hooks/use-colors';
 import type { Result } from '@/repo/result';
@@ -24,6 +26,8 @@ export function SetEntryPanel({
   title,
   equipment,
   initial,
+  lastTime,
+  plan,
   saveLabel,
   onSave,
   onClose,
@@ -32,6 +36,10 @@ export function SetEntryPanel({
   title: string;
   equipment: Equipment;
   initial: SetDraft;
+  /** The same set last session, shown for comparison (never copied in). */
+  lastTime?: SetNumbers;
+  /** What was planned at the end of last session. */
+  plan: NextTimePlan;
   saveLabel: string;
   onSave: (draft: SetDraft) => Result<unknown, SetErrors>;
   onClose: () => void;
@@ -79,13 +87,26 @@ export function SetEntryPanel({
     );
   };
 
+  const hint = sameAsLastTimeHint(plan, lastTime, {
+    weightKg: keypadNumber(draft.weight),
+    reps: keypadNumber(draft.reps),
+  });
+  const planText = describePlan(plan);
+
   return (
     <View style={[styles.panel, { backgroundColor: c.background, borderTopColor: c.border }]}>
-      <Text style={[styles.title, { color: c.text }]}>{title}</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: c.text }]}>{title}</Text>
+        <Text style={[styles.lastTime, { color: c.textMuted }]}>
+          {lastTime ? `Last time ${formatSet(lastTime.weightKg, lastTime.reps)}` : 'Not done last time'}
+          {planText ? ` · planned ${planText}` : ''}
+        </Text>
+      </View>
       <View style={styles.boxes}>
         {fieldBox('weight', 'Weight', loadLabel(equipment))}
         {fieldBox('reps', 'Reps', 'reps')}
       </View>
+      {hint ? <Text style={[styles.hint, { color: c.accent }]}>⚠︎ {hint}</Text> : null}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
         <ChoiceChips
@@ -123,7 +144,10 @@ export function SetEntryPanel({
 
 const styles = StyleSheet.create({
   panel: { borderTopWidth: 1, padding: spacing.md, gap: spacing.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm },
   title: { fontSize: fontSize.body, fontWeight: '700' },
+  lastTime: { flexShrink: 1, textAlign: 'right', fontSize: fontSize.small, fontVariant: ['tabular-nums'] },
+  hint: { fontSize: fontSize.body, fontWeight: '600' },
   boxes: { flexDirection: 'row', gap: spacing.sm },
   box: { flex: 1, borderWidth: 2, borderRadius: 12, padding: spacing.sm, minHeight: 92 },
   boxLabel: { fontSize: fontSize.small, fontWeight: '600', textTransform: 'uppercase' },

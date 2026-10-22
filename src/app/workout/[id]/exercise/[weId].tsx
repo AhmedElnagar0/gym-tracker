@@ -4,19 +4,22 @@ import { Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SetEntryPanel } from '@/components/set-entry-panel';
-import { SetRow } from '@/components/set-row';
+import { PendingSetRow, SetRow } from '@/components/set-row';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { dismissKeyboardOnScroll } from '@/components/ui/keyboard';
 import { Notice } from '@/components/ui/notice';
 import { db } from '@/db/client';
-import { exercises, sets, workoutExercises } from '@/db/schema';
+import { exercises, sets, workoutExercises, workouts } from '@/db/schema';
 import { EQUIPMENT_LABELS } from '@/domain/constants';
 import { loadLabel } from '@/domain/conventions';
+import { formatDateTime } from '@/domain/format';
 import { keypadText } from '@/domain/keypad';
+import { describePlan } from '@/domain/progression';
 import type { SetDraft } from '@/domain/set-input';
 import { useColors } from '@/hooks/use-colors';
 import { useDbQuery } from '@/hooks/use-db-query';
+import { getLastPerformance } from '@/repo/history';
 import { addSet, deleteSet, updateSet } from '@/repo/sets';
 import {
   getWorkoutExercise,
@@ -25,6 +28,7 @@ import {
   setExerciseNotes,
   setNextTimePlan,
 } from '@/repo/workout-exercises';
+import { getWorkout } from '@/repo/workouts';
 import { fontSize, spacing, TAP_TARGET } from '@/theme';
 
 type Editing = { kind: 'new' } | { kind: 'edit'; setId: string } | null;
@@ -34,7 +38,15 @@ export default function LogExerciseScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { weId } = useLocalSearchParams<{ id: string; weId: string }>();
-  const detail = useDbQuery(() => getWorkoutExercise(db, weId), [workoutExercises, sets, exercises]);
+  const detail = useDbQuery(() => {
+    const found = getWorkoutExercise(db, weId);
+    if (!found) return undefined;
+    const workout = getWorkout(db, found.workoutExercise.workoutId);
+    const last = workout
+      ? getLastPerformance(db, found.exercise.id, { workoutId: workout.id, startedAt: workout.startedAt })
+      : undefined;
+    return { ...found, last };
+  }, [workoutExercises, sets, exercises, workouts]);
 
   const [editing, setEditing] = useState<Editing>(null);
   // Bumped after each new set so the panel resets (keeping the weight) for the next one.
@@ -50,7 +62,14 @@ export default function LogExerciseScreen() {
     );
   }
 
-  const { workoutExercise: we, exercise, sets: logged } = detail;
+  const { workoutExercise: we, exercise, sets: logged, last } = detail;
+  const lastSets = last?.sets ?? [];
+  // The plan was made at the end of the last session, for this one.
+  const plan = {
+    increaseWeight: last?.workoutExercise.nextIncreaseWeight ?? false,
+    increaseReps: last?.workoutExercise.nextIncreaseReps ?? false,
+  };
+  const planText = describePlan(plan);
   const lastSet = logged.at(-1);
   const editingSet = editing?.kind === 'edit' ? logged.find((s) => s.id === editing.setId) : undefined;
   // Derived from what exists, so a set that vanished mid-edit can't leave the screen stuck.
@@ -106,14 +125,42 @@ export default function LogExerciseScreen() {
           {exercise.isUnilateral ? ' · reps per side' : ''}
         </Text>
 
-        {logged.length === 0 ? <Text style={[styles.empty, { color: c.textMuted }]}>No sets yet.</Text> : null}
+        <View style={[styles.lastCard, { backgroundColor: c.surface }]}>
+          {last ? (
+            <>
+              <Text style={[styles.lastTitle, { color: c.text }]}>Last time · {formatDateTime(last.workout.startedAt)}</Text>
+              {last.workoutExercise.notes ? (
+                <Text style={[styles.lastBody, { color: c.text }]}>“{last.workoutExercise.notes}”</Text>
+              ) : null}
+              {planText ? (
+                <Text style={[styles.lastPlan, { color: c.accent }]}>You planned {planText} for today.</Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={[styles.lastBody, { color: c.textMuted }]}>First time logging this exercise.</Text>
+          )}
+        </View>
+
+        {logged.length === 0 && lastSets.length === 0 ? (
+          <Text style={[styles.empty, { color: c.textMuted }]}>No sets yet.</Text>
+        ) : null}
         {logged.map((s, i) => (
           <SetRow
             key={s.id}
             number={i + 1}
             set={s}
+            lastTime={lastSets[i]}
             selected={editing?.kind === 'edit' && editing.setId === s.id}
             onPress={() => setEditing({ kind: 'edit', setId: s.id })}
+          />
+        ))}
+        {/* Sets done last time but not yet today, as reminders. */}
+        {lastSets.slice(logged.length).map((s, i) => (
+          <PendingSetRow
+            key={s.id}
+            number={logged.length + i + 1}
+            lastTime={s}
+            onPress={() => setEditing({ kind: 'new' })}
           />
         ))}
         {!panelOpen ? <Button title="Add set" onPress={() => setEditing({ kind: 'new' })} /> : null}
@@ -155,6 +202,8 @@ export default function LogExerciseScreen() {
             title={`Set ${logged.length + 1}`}
             equipment={exercise.equipment}
             initial={newSetDraft}
+            lastTime={lastSets[logged.length]}
+            plan={plan}
             saveLabel="Save set"
             onSave={(draft) => {
               const result = addSet(db, we.id, draft);
@@ -172,6 +221,8 @@ export default function LogExerciseScreen() {
             key={`edit-${editingSet.id}`}
             title={`Edit set ${logged.indexOf(editingSet) + 1}`}
             equipment={exercise.equipment}
+            lastTime={lastSets[logged.indexOf(editingSet)]}
+            plan={plan}
             initial={{
               weight: keypadText(editingSet.weightKg),
               reps: String(editingSet.reps),
@@ -210,6 +261,10 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.sm },
   meta: { fontSize: fontSize.body, marginBottom: spacing.sm },
   empty: { fontSize: fontSize.body },
+  lastCard: { borderRadius: 12, padding: spacing.md, gap: spacing.xs, marginBottom: spacing.sm },
+  lastTitle: { fontSize: fontSize.body, fontWeight: '700' },
+  lastBody: { fontSize: fontSize.body },
+  lastPlan: { fontSize: fontSize.body, fontWeight: '600' },
   notes: {
     minHeight: TAP_TARGET * 1.5,
     borderWidth: 1,

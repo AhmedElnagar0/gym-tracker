@@ -16,7 +16,7 @@ import {
   setExerciseNotes,
   setNextTimePlan,
 } from './workout-exercises';
-import { discardWorkout, getActiveWorkout, getWorkoutSummary, startWorkout } from './workouts';
+import { discardWorkout, finishWorkout, getActiveWorkout, getWorkoutSummary, startWorkout } from './workouts';
 
 jest.mock('@/db/ids', () => ({
   newId: () => jest.requireActual<typeof import('crypto')>('crypto').randomUUID(),
@@ -81,6 +81,45 @@ describe('workouts', () => {
     value(addSet(db, a, set('60', '8')));
     value(addSet(db, a, set('60', '7')));
     expect(getWorkoutSummary(db, id)).toEqual({ exerciseCount: 2, setCount: 2 });
+  });
+});
+
+describe('finishWorkout', () => {
+  it('sets the end time and drops exercises that have no sets', () => {
+    const id = value(startWorkout(db));
+    const bench = value(addExerciseToWorkout(db, id, BENCH_PRESS.id));
+    value(addExerciseToWorkout(db, id, BACK_SQUAT.id)); // left empty
+    value(addSet(db, bench, set('60', '8')));
+
+    expect(value(finishWorkout(db, id))).toEqual({ removedEmpty: 1 });
+    const finished = db.select().from(workouts).where(eq(workouts.id, id)).get();
+    expect(finished?.endedAt).not.toBeNull();
+    expect(finished!.endedAt!).toBeGreaterThanOrEqual(finished!.startedAt);
+    expect(listWorkoutExercises(db, id).map((x) => x.exercise.name)).toEqual(['Bench Press']);
+    expect(getActiveWorkout(db)).toBeUndefined();
+  });
+
+  it('refuses a workout with no sets at all, and changes nothing', () => {
+    const id = value(startWorkout(db));
+    value(addExerciseToWorkout(db, id, BENCH_PRESS.id));
+    expect(finishWorkout(db, id)).toMatchObject({ ok: false, error: expect.stringMatching(/Discard/) });
+    expect(getActiveWorkout(db)?.id).toBe(id);
+    expect(listWorkoutExercises(db, id)).toHaveLength(1);
+  });
+
+  it('refuses to finish twice', () => {
+    const id = value(startWorkout(db));
+    value(addSet(db, value(addExerciseToWorkout(db, id, BENCH_PRESS.id)), set('60', '8')));
+    value(finishWorkout(db, id));
+    expect(finishWorkout(db, id)).toMatchObject({ ok: false, error: expect.stringMatching(/already finished/) });
+  });
+
+  it('never ends before it started, even if the clock went backwards', () => {
+    const id = value(startWorkout(db));
+    db.update(workouts).set({ startedAt: 4_000_000_000 }).where(eq(workouts.id, id)).run(); // "the future"
+    value(addSet(db, value(addExerciseToWorkout(db, id, BENCH_PRESS.id)), set('60', '8')));
+    value(finishWorkout(db, id));
+    expect(db.select().from(workouts).where(eq(workouts.id, id)).get()?.endedAt).toBe(4_000_000_000);
   });
 });
 

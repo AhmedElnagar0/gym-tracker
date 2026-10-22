@@ -6,7 +6,9 @@ M1 done: all nine checkpoint steps passed on the iPhone, 2026-10-20.
 M2 done, 2026-10-20: export to iCloud Drive, restore round trip, wrong-file rejection, and
 **delete Expo Go → reinstall → restore** all passed on the iPhone.
 M3 done, 2026-10-21: all ten checkpoint steps passed; number pad size confirmed comfortable;
-keyboard now hides on drag everywhere (user request). Next: M4 (finish workouts, last time).
+keyboard now hides on drag everywhere (user request).
+M4 done, 2026-10-22: all checkpoint steps passed on the iPhone. Next: Add-exercise by muscle
+group (user request), then M5 (history).
 Decisions so far: Path A (Expo SDK 57 + App Store Expo Go), leaf-only rule relaxed,
 export/restore in MVP, kg only, Zustand dropped.
 
@@ -284,7 +286,12 @@ so test workouts can be cleared; "Finish" stays in M4. Multi-table screens use `
 - ✅ Force-quit mid-workout → "Resume workout" appears with everything intact.
 - ✅ The input label reads "kg / side" for barbell and "kg / dumbbell" for dumbbell.
 
-**M4 Finish and persist.**
+**M4 Finish and persist.** Built: "Finish workout" (confirm, drops empty exercises, refuses a
+workout with no sets) returns to Today and, if the last backup is 7+ days old or missing, offers
+"Back up now" (an alert rather than a banner). The logging screen shows a "Last time" card (date,
+note, the plan made then), last time's numbers under each logged set, dashed rows for sets done
+last time but not yet today, and a non-blocking "Same as last time" hint in the number pad
+panel. "Last time" = the latest finished workout that started before this one.
 - ✅ Finish → confirm → Today resets; exercises with no sets are dropped; an empty workout offers Discard.
 - ✅ Second workout: Bench Press shows **Last time 60 × 8** beside empty fields, last time's note,
   and the "↑ weight" plan. Entering 60 × 8 shows the hint.

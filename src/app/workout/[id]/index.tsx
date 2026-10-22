@@ -7,11 +7,13 @@ import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
 import { db } from '@/db/client';
 import { exercises, sets, workoutExercises, workouts } from '@/db/schema';
-import { formatClock, formatSet, plural } from '@/domain/format';
+import { backupIsStale, formatClock, formatDaysAgo, formatSet, plural } from '@/domain/format';
+import { nowUnix } from '@/domain/time';
 import { useColors } from '@/hooks/use-colors';
 import { useDbQuery } from '@/hooks/use-db-query';
+import { lastExportedAt } from '@/repo/backup';
 import { listWorkoutExercises } from '@/repo/workout-exercises';
-import { discardWorkout, getWorkout } from '@/repo/workouts';
+import { discardWorkout, finishWorkout, getWorkout } from '@/repo/workouts';
 import { routes } from '@/routes';
 import { fontSize, spacing, TAP_TARGET } from '@/theme';
 
@@ -36,6 +38,49 @@ export default function WorkoutScreen() {
   const { workout, items } = data;
   const inProgress = workout.endedAt === null;
   const totalSets = items.reduce((n, item) => n + item.sets.length, 0);
+
+  const afterFinish = () => {
+    router.dismissAll(); // back to Today
+    const last = lastExportedAt();
+    if (backupIsStale(last, nowUnix())) {
+      Alert.alert(
+        'Workout saved',
+        `${last === null ? 'You have never backed up' : `Your last backup was ${formatDaysAgo(last, nowUnix())}`}. ` +
+          'Your workouts live only on this phone.',
+        [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Back up now', onPress: () => router.push(routes.backup()) },
+        ],
+      );
+    }
+  };
+
+  const onFinish = () => {
+    if (totalSets === 0) {
+      Alert.alert('Nothing logged yet', 'Log at least one set to finish, or discard the workout.');
+      return;
+    }
+    const empty = items.filter((item) => item.sets.length === 0);
+    const removal =
+      empty.length > 0
+        ? `\n\n${empty.map((e) => e.exercise.name).join(', ')} ${empty.length === 1 ? 'has' : 'have'} no sets and will be removed.`
+        : '';
+    Alert.alert(
+      'Finish workout?',
+      `${plural(items.length - empty.length, 'exercise')} · ${plural(totalSets, 'set')}${removal}`,
+      [
+        { text: 'Keep going', style: 'cancel' },
+        {
+          text: 'Finish',
+          onPress: () => {
+            const result = finishWorkout(db, workout.id);
+            if (result.ok) afterFinish();
+            else Alert.alert('Not finished', result.error);
+          },
+        },
+      ],
+    );
+  };
 
   const onDiscard = () => {
     Alert.alert(
@@ -92,7 +137,7 @@ export default function WorkoutScreen() {
       <Button title="Add exercise" onPress={() => router.push(routes.addExerciseToWorkout(workout.id))} />
       {inProgress ? (
         <>
-          <Notice title="Finishing a workout arrives in M4" body="Until then it stays in progress; everything is already saved." />
+          <Button title="Finish workout" onPress={onFinish} />
           <Button title="Discard workout" variant="danger" onPress={onDiscard} />
         </>
       ) : null}

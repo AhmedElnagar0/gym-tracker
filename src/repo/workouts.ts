@@ -1,4 +1,4 @@
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 
 import { newId } from '@/db/ids';
 import { sets, workoutExercises, workouts, type Workout } from '@/db/schema';
@@ -34,6 +34,39 @@ export function discardWorkout(db: AppDb, id: string): Result {
   // ON DELETE CASCADE removes its workout_exercises and their sets.
   db.delete(workouts).where(and(eq(workouts.id, id), isNull(workouts.endedAt))).run();
   return done();
+}
+
+/**
+ * Finishes the workout in progress: exercises with no sets are dropped, then it gets its
+ * end time. A workout with no sets at all can't be finished (discard it instead).
+ */
+export function finishWorkout(db: AppDb, id: string): Result<{ removedEmpty: number }> {
+  const workout = getWorkout(db, id);
+  if (!workout) return fail('This workout no longer exists.');
+  if (workout.endedAt !== null) return fail('This workout is already finished.');
+
+  const perExercise = db
+    .select({ id: workoutExercises.id, setCount: count(sets.id) })
+    .from(workoutExercises)
+    .leftJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
+    .where(eq(workoutExercises.workoutId, id))
+    .groupBy(workoutExercises.id)
+    .all();
+  const emptyIds = perExercise.filter((e) => e.setCount === 0).map((e) => e.id);
+  if (perExercise.length === emptyIds.length) {
+    return fail('No sets are logged, so there is nothing to save. Discard the workout instead.');
+  }
+
+  db.transaction((tx) => {
+    if (emptyIds.length > 0) tx.delete(workoutExercises).where(inArray(workoutExercises.id, emptyIds)).run();
+    // max(): the end time can never be before the start (a CHECK constraint), even if
+    // the phone's clock was changed mid-workout.
+    tx.update(workouts)
+      .set({ endedAt: Math.max(nowUnix(), workout.startedAt) })
+      .where(eq(workouts.id, id))
+      .run();
+  });
+  return ok({ removedEmpty: emptyIds.length });
 }
 
 export type WorkoutSummary = { exerciseCount: number; setCount: number };
