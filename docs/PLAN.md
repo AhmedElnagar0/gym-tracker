@@ -7,8 +7,9 @@ M2 done, 2026-10-20: export to iCloud Drive, restore round trip, wrong-file reje
 **delete Expo Go → reinstall → restore** all passed on the iPhone.
 M3 done, 2026-10-21: all ten checkpoint steps passed; number pad size confirmed comfortable;
 keyboard now hides on drag everywhere (user request).
-M4 done, 2026-10-22: all checkpoint steps passed on the iPhone. Next: Add-exercise by muscle
-group (user request), then M5 (history).
+M4 done, 2026-10-22: all checkpoint steps passed on the iPhone. Add-exercise by muscle group
+(user request) verified on the iPhone the same day.
+M5 done, 2026-10-22: all six checkpoint steps passed on the iPhone. Next: M6 (edit and delete).
 Decisions so far: Path A (Expo SDK 57 + App Store Expo Go), leaf-only rule relaxed,
 export/restore in MVP, kg only, Zustand dropped.
 
@@ -297,7 +298,11 @@ panel. "Last time" = the latest finished workout that started before this one.
   and the "↑ weight" plan. Entering 60 × 8 shows the hint.
 - ✅ The backup banner appears when the last backup is more than 7 days old.
 
-**M5 History.**
+**M5 History.** Built: History tab (finished workouts newest first, grouped by month, with date,
+start time, duration, set count and exercises); a finished workout opens as a read-only detail
+(date title, start–end, duration, every set with RPE/type, notes, next-time plan); exercise pages
+have Details | History, listing every finished session of that exact exercise (variants have their
+own history). Add-exercise also gained "By muscle" / "All exercises" (user request, 2026-10-22).
 - ✅ The History tab lists workouts newest first with correct local dates and durations; the detail
   matches what you logged.
 - ✅ Bench Press → History segment shows every session.

@@ -3,10 +3,13 @@ import {
   calendarDaysBetween,
   describeCounts,
   formatClock,
+  formatDate,
   formatDateTime,
   formatDaysAgo,
+  formatDuration,
   formatSet,
   formatWeight,
+  groupByMonth,
 } from './format';
 import { toUnix } from './time';
 
@@ -56,6 +59,29 @@ describe('weights, sets and clock times', () => {
 
   it('formats a clock time with zero padding', () => {
     expect(formatClock(at(2026, 10, 20, 7, 5))).toBe('07:05');
+  });
+});
+
+describe('dates, months and durations', () => {
+  it('formats a date with weekday', () => {
+    expect(formatDate(at(2026, 10, 20, 17, 5))).toBe('Tue 20 Oct 2026');
+  });
+
+  it('formats durations', () => {
+    expect(formatDuration(30)).toBe('under 1 min');
+    expect(formatDuration(45 * 60 + 59)).toBe('45 min');
+    expect(formatDuration(65 * 60)).toBe('1 h 05 min');
+    expect(formatDuration(-10)).toBe('under 1 min');
+  });
+
+  it('groups newest-first items into month sections', () => {
+    const items = [at(2026, 10, 20), at(2026, 10, 2), at(2026, 9, 28), at(2025, 10, 5)];
+    expect(groupByMonth(items, (t) => t).map((s) => [s.title, s.data.length])).toEqual([
+      ['October 2026', 2],
+      ['September 2026', 1],
+      ['October 2025', 1],
+    ]);
+    expect(groupByMonth([], (t: number) => t)).toEqual([]);
   });
 });
 

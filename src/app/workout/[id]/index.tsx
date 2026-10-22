@@ -6,13 +6,25 @@ import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
 import { db } from '@/db/client';
-import { exercises, sets, workoutExercises, workouts } from '@/db/schema';
-import { backupIsStale, formatClock, formatDaysAgo, formatSet, plural } from '@/domain/format';
+import { exercises, sets, workoutExercises, workouts, type Workout } from '@/db/schema';
+import { loadLabel } from '@/domain/conventions';
+import {
+  backupIsStale,
+  formatClock,
+  formatDate,
+  formatDaysAgo,
+  formatDuration,
+  formatSet,
+  formatWeight,
+  plural,
+} from '@/domain/format';
+import { describePlan } from '@/domain/progression';
+import { SET_TYPE_LABELS } from '@/domain/set-input';
 import { nowUnix } from '@/domain/time';
 import { useColors } from '@/hooks/use-colors';
 import { useDbQuery } from '@/hooks/use-db-query';
 import { lastExportedAt } from '@/repo/backup';
-import { listWorkoutExercises } from '@/repo/workout-exercises';
+import { listWorkoutExercises, type LoggedSet, type WorkoutExerciseDetail } from '@/repo/workout-exercises';
 import { discardWorkout, finishWorkout, getWorkout } from '@/repo/workouts';
 import { routes } from '@/routes';
 import { fontSize, spacing, TAP_TARGET } from '@/theme';
@@ -101,9 +113,11 @@ export default function WorkoutScreen() {
     );
   };
 
+  if (!inProgress) return <PastWorkoutDetail workout={workout} items={items} />;
+
   return (
     <Screen>
-      <Stack.Screen options={{ title: inProgress ? 'Workout' : 'Past workout' }} />
+      <Stack.Screen options={{ title: 'Workout' }} />
       <Text style={[styles.meta, { color: c.textMuted }]}>
         Started {formatClock(workout.startedAt)} · {plural(items.length, 'exercise')} · {plural(totalSets, 'set')}
       </Text>
@@ -135,12 +149,63 @@ export default function WorkoutScreen() {
       )}
 
       <Button title="Add exercise" onPress={() => router.push(routes.addExerciseToWorkout(workout.id))} />
-      {inProgress ? (
-        <>
-          <Button title="Finish workout" onPress={onFinish} />
-          <Button title="Discard workout" variant="danger" onPress={onDiscard} />
-        </>
-      ) : null}
+      <Button title="Finish workout" onPress={onFinish} />
+      <Button title="Discard workout" variant="danger" onPress={onDiscard} />
+    </Screen>
+  );
+}
+
+/** "60 × 8 · RPE 8 · Warm-up". */
+function describeSet(s: LoggedSet): string {
+  return [
+    formatSet(s.weightKg, s.reps),
+    s.rpe !== null ? `RPE ${formatWeight(s.rpe)}` : null,
+    s.setType !== 'working' ? SET_TYPE_LABELS[s.setType] : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/**
+ * A finished workout, read-only, so browsing history can't change it by accident.
+ * (Editing past workouts is M6.)
+ */
+function PastWorkoutDetail({ workout, items }: { workout: Workout; items: WorkoutExerciseDetail[] }) {
+  const c = useColors();
+  const totalSets = items.reduce((n, item) => n + item.sets.length, 0);
+  const endedAt = workout.endedAt ?? workout.startedAt;
+  return (
+    <Screen>
+      <Stack.Screen options={{ title: formatDate(workout.startedAt) }} />
+      <Text style={[styles.meta, { color: c.textMuted }]}>
+        {formatClock(workout.startedAt)}–{formatClock(endedAt)} · {formatDuration(endedAt - workout.startedAt)} ·{' '}
+        {plural(items.length, 'exercise')} · {plural(totalSets, 'set')}
+      </Text>
+      {workout.notes ? <Text style={[styles.note, { color: c.text }]}>“{workout.notes}”</Text> : null}
+
+      {items.map((item, index) => {
+        const plan = describePlan({
+          increaseWeight: item.workoutExercise.nextIncreaseWeight,
+          increaseReps: item.workoutExercise.nextIncreaseReps,
+        });
+        return (
+          <View key={item.workoutExercise.id} style={[styles.card, styles.detailCard, { backgroundColor: c.surface }]}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>
+              {index + 1}. {item.exercise.name}
+            </Text>
+            <Text style={[styles.cardUnit, { color: c.textMuted }]}>{loadLabel(item.exercise.equipment)}</Text>
+            {item.sets.map((s, i) => (
+              <Text key={s.id} style={[styles.setLine, { color: c.text }]}>
+                {i + 1}.  {describeSet(s)}
+              </Text>
+            ))}
+            {item.workoutExercise.notes ? (
+              <Text style={[styles.note, { color: c.text }]}>“{item.workoutExercise.notes}”</Text>
+            ) : null}
+            {plan ? <Text style={[styles.cardUnit, { color: c.accent }]}>Next time: {plan}</Text> : null}
+          </View>
+        );
+      })}
     </Screen>
   );
 }
@@ -155,7 +220,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  detailCard: { flexDirection: 'column', alignItems: 'stretch', gap: spacing.xs },
   cardText: { flex: 1, gap: 2 },
   cardTitle: { fontSize: fontSize.large, fontWeight: '700' },
   cardBody: { fontSize: fontSize.body, fontVariant: ['tabular-nums'] },
+  cardUnit: { fontSize: fontSize.small },
+  setLine: { fontSize: fontSize.body, fontVariant: ['tabular-nums'] },
+  note: { fontSize: fontSize.body, fontStyle: 'italic' },
 });

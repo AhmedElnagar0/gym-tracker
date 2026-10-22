@@ -5,7 +5,7 @@ import { BENCH_PRESS, INCLINE_BENCH_PRESS } from '@/db/seed-data';
 import type { AppDb } from '@/db/types';
 import { createTestDb } from '@/test-utils/test-db';
 
-import { getLastPerformance } from './history';
+import { getExerciseHistory, getLastPerformance, listFinishedWorkouts } from './history';
 
 type Logged = { weightKg: number; reps: number };
 
@@ -39,6 +39,45 @@ function logWorkout(
 let db: AppDb;
 beforeEach(async () => {
   db = await createTestDb({ seed: true });
+});
+
+describe('listFinishedWorkouts', () => {
+  it('lists finished workouts newest first with exercise names and set counts', () => {
+    logWorkout(db, 1000, BENCH_PRESS.id, [{ weightKg: 50, reps: 10 }]);
+    logWorkout(db, 3000, INCLINE_BENCH_PRESS.id, [{ weightKg: 40, reps: 10 }, { weightKg: 40, reps: 9 }]);
+    logWorkout(db, 4000, BENCH_PRESS.id, [{ weightKg: 60, reps: 8 }], { finished: false }); // in progress
+
+    const list = listFinishedWorkouts(db);
+    expect(list.map((w) => [w.workout.startedAt, w.exerciseNames, w.setCount])).toEqual([
+      [3000, ['Incline Bench Press'], 2],
+      [1000, ['Bench Press'], 1],
+    ]);
+  });
+
+  it('is empty before anything is finished', () => {
+    expect(listFinishedWorkouts(db)).toEqual([]);
+  });
+});
+
+describe('getExerciseHistory', () => {
+  it('returns every finished session of that exercise, newest first, with sets and notes', () => {
+    logWorkout(db, 1000, BENCH_PRESS.id, [{ weightKg: 50, reps: 10 }], { notes: 'first' });
+    logWorkout(db, 2000, INCLINE_BENCH_PRESS.id, [{ weightKg: 40, reps: 10 }]); // a variant: not included
+    logWorkout(db, 3000, BENCH_PRESS.id, [{ weightKg: 60, reps: 8 }, { weightKg: 62.5, reps: 6 }]);
+    logWorkout(db, 4000, BENCH_PRESS.id, [{ weightKg: 99, reps: 1 }], { finished: false }); // in progress
+
+    const history = getExerciseHistory(db, BENCH_PRESS.id);
+    expect(history.map((h) => h.workout.startedAt)).toEqual([3000, 1000]);
+    expect(history[0].sets.map((s) => [s.weightKg, s.reps])).toEqual([
+      [60, 8],
+      [62.5, 6],
+    ]);
+    expect(history[1].workoutExercise.notes).toBe('first');
+  });
+
+  it('is empty for an exercise never done', () => {
+    expect(getExerciseHistory(db, BENCH_PRESS.id)).toEqual([]);
+  });
 });
 
 describe('getLastPerformance', () => {

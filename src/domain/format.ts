@@ -29,6 +29,57 @@ export function formatDaysAgo(then: number, now: number): string {
   return `${days} days ago`;
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** "Tue 20 Oct 2026", in local time. */
+export function formatDate(unix: number): string {
+  const d = fromUnix(unix);
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** "October 2026", in local time. */
+export function formatMonth(unix: number): string {
+  const d = fromUnix(unix);
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** "45 min", "1 h 05 min", "under 1 min". */
+export function formatDuration(seconds: number): string {
+  const minutes = Math.floor(Math.max(0, seconds) / 60);
+  if (minutes < 1) return 'under 1 min';
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${pad(minutes % 60)} min`;
+}
+
+/**
+ * Splits items (already sorted newest first) into consecutive month sections,
+ * e.g. [{ title: "October 2026", data: [...] }, { title: "September 2026", … }].
+ */
+export function groupByMonth<T>(items: readonly T[], timeOf: (item: T) => number): { title: string; data: T[] }[] {
+  const sections: { title: string; data: T[] }[] = [];
+  for (const item of items) {
+    const title = formatMonth(timeOf(item));
+    const current = sections.at(-1);
+    if (current && current.title === title) current.data.push(item);
+    else sections.push({ title, data: [item] });
+  }
+  return sections;
+}
+
 /** "17:05", in local time. */
 export function formatClock(unix: number): string {
   const d = fromUnix(unix);

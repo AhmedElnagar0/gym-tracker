@@ -1,19 +1,24 @@
 import { eq } from 'drizzle-orm';
 import { useLiveQuery } from 'drizzle-orm/expo-sqlite';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
+import { ExerciseHistory } from '@/components/exercise-history';
 import { ExerciseRow } from '@/components/exercise-row';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
+import { Segmented } from '@/components/ui/segmented';
 import { db } from '@/db/client';
-import { exercises } from '@/db/schema';
+import { exercises, sets, workoutExercises, workouts } from '@/db/schema';
 import { EQUIPMENT_LABELS, MECHANIC_LABELS, MUSCLE_GROUP_LABELS } from '@/domain/constants';
 import { loadLabel } from '@/domain/conventions';
 import { deleteBlocker } from '@/domain/exercise-rules';
 import { useColors } from '@/hooks/use-colors';
+import { useDbQuery } from '@/hooks/use-db-query';
 import { deleteExercise, getExercise, getUsage, setArchived } from '@/repo/exercises';
+import { getExerciseHistory } from '@/repo/history';
 import { routes } from '@/routes';
 import { fontSize, spacing } from '@/theme';
 
@@ -28,6 +33,8 @@ export default function ExerciseDetailScreen() {
     [id],
   );
   const exercise = rows[0];
+  const [tab, setTab] = useState<'details' | 'history'>('details');
+  const history = useDbQuery(() => getExerciseHistory(db, id), [workouts, workoutExercises, sets]);
 
   if (updatedAt === undefined) return null; // first load still running
   if (!exercise) {
@@ -80,61 +87,75 @@ export default function ExerciseDetailScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: exercise.name }} />
+      <Segmented
+        options={[
+          { value: 'details', label: 'Details' },
+          { value: 'history', label: `History (${history.length})` },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
-      {archived ? <Notice title="Archived" body="Hidden from the catalogue and pickers. History is kept." /> : null}
+      {tab === 'history' ? (
+        <ExerciseHistory sessions={history} hasVariants={variants.length > 0} />
+      ) : (
+        <>
+          {archived ? <Notice title="Archived" body="Hidden from the catalogue and pickers. History is kept." /> : null}
 
-      {parent ? (
-        <View style={styles.block}>
-          <Text style={[styles.heading, { color: c.textMuted }]}>Variant of</Text>
-          <ExerciseRow
-            exercise={parent}
-            isVariant={false}
-            onPress={() => router.push(routes.exercise(parent.id))}
-          />
-        </View>
-      ) : null}
-
-      <View style={[styles.card, { backgroundColor: c.surface }]}>
-        {facts.map(([label, value]) => (
-          <View key={label} style={styles.fact}>
-            <Text style={[styles.factLabel, { color: c.textMuted }]}>{label}</Text>
-            <Text style={[styles.factValue, { color: c.text }]}>{value}</Text>
-          </View>
-        ))}
-      </View>
-
-      {!parent ? (
-        <View style={styles.block}>
-          <Text style={[styles.heading, { color: c.textMuted }]}>Variants</Text>
-          {variants.length === 0 ? (
-            <Text style={[styles.empty, { color: c.textMuted }]}>None yet.</Text>
-          ) : (
-            variants.map((v) => (
+          {parent ? (
+            <View style={styles.block}>
+              <Text style={[styles.heading, { color: c.textMuted }]}>Variant of</Text>
               <ExerciseRow
-                key={v.id}
-                exercise={v}
+                exercise={parent}
                 isVariant={false}
-                onPress={() => router.push(routes.exercise(v.id))}
+                onPress={() => router.push(routes.exercise(parent.id))}
               />
-            ))
-          )}
-          <Button
-            title="Add variant"
-            variant="secondary"
-            onPress={() => router.push(routes.newVariant(exercise.id))}
-          />
-        </View>
-      ) : null}
+            </View>
+          ) : null}
 
-      <View style={styles.block}>
-        <Button
-          title="Edit"
-          variant="secondary"
-          onPress={() => router.push(routes.editExercise(exercise.id))}
-        />
-        <Button title={archived ? 'Restore from archive' : 'Archive'} variant="secondary" onPress={onArchive} />
-        <Button title="Delete" variant="danger" onPress={onDelete} />
-      </View>
+          <View style={[styles.card, { backgroundColor: c.surface }]}>
+            {facts.map(([label, value]) => (
+              <View key={label} style={styles.fact}>
+                <Text style={[styles.factLabel, { color: c.textMuted }]}>{label}</Text>
+                <Text style={[styles.factValue, { color: c.text }]}>{value}</Text>
+              </View>
+            ))}
+          </View>
+
+          {!parent ? (
+            <View style={styles.block}>
+              <Text style={[styles.heading, { color: c.textMuted }]}>Variants</Text>
+              {variants.length === 0 ? (
+                <Text style={[styles.empty, { color: c.textMuted }]}>None yet.</Text>
+              ) : (
+                variants.map((v) => (
+                  <ExerciseRow
+                    key={v.id}
+                    exercise={v}
+                    isVariant={false}
+                    onPress={() => router.push(routes.exercise(v.id))}
+                  />
+                ))
+              )}
+              <Button
+                title="Add variant"
+                variant="secondary"
+                onPress={() => router.push(routes.newVariant(exercise.id))}
+              />
+            </View>
+          ) : null}
+
+          <View style={styles.block}>
+            <Button
+              title="Edit"
+              variant="secondary"
+              onPress={() => router.push(routes.editExercise(exercise.id))}
+            />
+            <Button title={archived ? 'Restore from archive' : 'Archive'} variant="secondary" onPress={onArchive} />
+            <Button title="Delete" variant="danger" onPress={onDelete} />
+          </View>
+        </>
+      )}
     </Screen>
   );
 }
