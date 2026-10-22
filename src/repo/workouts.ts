@@ -36,6 +36,17 @@ export function discardWorkout(db: AppDb, id: string): Result {
   return done();
 }
 
+/** Each exercise in the workout with how many sets it has (0 included). */
+function setCountsByExercise(db: AppDb, workoutId: string): { id: string; setCount: number }[] {
+  return db
+    .select({ id: workoutExercises.id, setCount: count(sets.id) })
+    .from(workoutExercises)
+    .leftJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
+    .where(eq(workoutExercises.workoutId, workoutId))
+    .groupBy(workoutExercises.id)
+    .all();
+}
+
 /**
  * Finishes the workout in progress: exercises with no sets are dropped, then it gets its
  * end time. A workout with no sets at all can't be finished (discard it instead).
@@ -45,13 +56,7 @@ export function finishWorkout(db: AppDb, id: string): Result<{ removedEmpty: num
   if (!workout) return fail('This workout no longer exists.');
   if (workout.endedAt !== null) return fail('This workout is already finished.');
 
-  const perExercise = db
-    .select({ id: workoutExercises.id, setCount: count(sets.id) })
-    .from(workoutExercises)
-    .leftJoin(sets, eq(sets.workoutExerciseId, workoutExercises.id))
-    .where(eq(workoutExercises.workoutId, id))
-    .groupBy(workoutExercises.id)
-    .all();
+  const perExercise = setCountsByExercise(db, id);
   const emptyIds = perExercise.filter((e) => e.setCount === 0).map((e) => e.id);
   if (perExercise.length === emptyIds.length) {
     return fail('No sets are logged, so there is nothing to save. Discard the workout instead.');
@@ -67,6 +72,27 @@ export function finishWorkout(db: AppDb, id: string): Result<{ removedEmpty: num
       .run();
   });
   return ok({ removedEmpty: emptyIds.length });
+}
+
+/** Permanently deletes a finished workout and everything logged in it. */
+export function deleteWorkout(db: AppDb, id: string): Result {
+  const workout = getWorkout(db, id);
+  if (!workout) return fail('This workout no longer exists.');
+  if (workout.endedAt === null) return fail('This workout is still in progress. Discard it instead.');
+  // ON DELETE CASCADE removes its workout_exercises and their sets.
+  db.delete(workouts).where(eq(workouts.id, id)).run();
+  return done();
+}
+
+/**
+ * Drops exercises with no sets from a workout, e.g. after editing a past workout.
+ * Returns how many sets the workout still has.
+ */
+export function removeEmptyExercises(db: AppDb, id: string): { removed: number; setCount: number } {
+  const perExercise = setCountsByExercise(db, id);
+  const emptyIds = perExercise.filter((e) => e.setCount === 0).map((e) => e.id);
+  if (emptyIds.length > 0) db.delete(workoutExercises).where(inArray(workoutExercises.id, emptyIds)).run();
+  return { removed: emptyIds.length, setCount: perExercise.reduce((n, e) => n + e.setCount, 0) };
 }
 
 export type WorkoutSummary = { exerciseCount: number; setCount: number };

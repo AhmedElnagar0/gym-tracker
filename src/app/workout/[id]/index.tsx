@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useDbQuery } from '@/hooks/use-db-query';
 import { lastExportedAt } from '@/repo/backup';
 import { listWorkoutExercises, type LoggedSet, type WorkoutExerciseDetail } from '@/repo/workout-exercises';
-import { discardWorkout, finishWorkout, getWorkout } from '@/repo/workouts';
+import { deleteWorkout, discardWorkout, finishWorkout, getWorkout, removeEmptyExercises } from '@/repo/workouts';
 import { routes } from '@/routes';
 import { fontSize, spacing, TAP_TARGET } from '@/theme';
 
@@ -37,12 +38,21 @@ export default function WorkoutScreen() {
     const workout = getWorkout(db, id);
     return workout ? { workout, items: listWorkoutExercises(db, id) } : null;
   }, [workouts, workoutExercises, sets, exercises]);
+  // A finished workout opens read-only; "Edit workout" switches to the editable overview.
+  const [editingPast, setEditingPast] = useState(false);
+  // However editing ends (Done, or Back), don't leave exercises with no sets behind.
+  useEffect(() => {
+    if (!editingPast) return;
+    return () => {
+      removeEmptyExercises(db, id);
+    };
+  }, [editingPast, id]);
 
   if (!data) {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Workout' }} />
-        <Notice title="Workout not found" body="It may have been discarded." />
+        <Notice title="Workout not found" body="It may have been discarded or deleted." />
       </Screen>
     );
   }
@@ -113,11 +123,60 @@ export default function WorkoutScreen() {
     );
   };
 
-  if (!inProgress) return <PastWorkoutDetail workout={workout} items={items} />;
+  const onDeleteWorkout = () => {
+    Alert.alert(
+      'Delete this workout?',
+      `${formatDate(workout.startedAt)}: ${plural(totalSets, 'set')} will be permanently deleted. ` +
+        'If you might want it back, export a backup first.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            const result = deleteWorkout(db, workout.id);
+            if (result.ok) router.back();
+            else Alert.alert('Not deleted', result.error);
+          },
+        },
+      ],
+    );
+  };
+
+  const onDoneEditing = () => {
+    // A finished workout keeps only exercises that have sets, as when it was finished.
+    const { setCount } = removeEmptyExercises(db, workout.id);
+    if (setCount > 0) {
+      setEditingPast(false);
+      return;
+    }
+    Alert.alert('No sets left', 'This workout has no sets any more. Delete it?', [
+      { text: 'Keep editing', style: 'cancel' },
+      {
+        text: 'Delete workout',
+        style: 'destructive',
+        onPress: () => {
+          deleteWorkout(db, workout.id);
+          router.back();
+        },
+      },
+    ]);
+  };
+
+  if (!inProgress && !editingPast) {
+    return (
+      <PastWorkoutDetail
+        workout={workout}
+        items={items}
+        onEdit={() => setEditingPast(true)}
+        onDelete={onDeleteWorkout}
+      />
+    );
+  }
 
   return (
     <Screen>
-      <Stack.Screen options={{ title: 'Workout' }} />
+      <Stack.Screen options={{ title: inProgress ? 'Workout' : `Editing ${formatDate(workout.startedAt)}` }} />
       <Text style={[styles.meta, { color: c.textMuted }]}>
         Started {formatClock(workout.startedAt)} · {plural(items.length, 'exercise')} · {plural(totalSets, 'set')}
       </Text>
@@ -149,8 +208,17 @@ export default function WorkoutScreen() {
       )}
 
       <Button title="Add exercise" onPress={() => router.push(routes.addExerciseToWorkout(workout.id))} />
-      <Button title="Finish workout" onPress={onFinish} />
-      <Button title="Discard workout" variant="danger" onPress={onDiscard} />
+      {inProgress ? (
+        <>
+          <Button title="Finish workout" onPress={onFinish} />
+          <Button title="Discard workout" variant="danger" onPress={onDiscard} />
+        </>
+      ) : (
+        <>
+          <Button title="Done editing" onPress={onDoneEditing} />
+          <Button title="Delete workout" variant="danger" onPress={onDeleteWorkout} />
+        </>
+      )}
     </Screen>
   );
 }
@@ -168,9 +236,19 @@ function describeSet(s: LoggedSet): string {
 
 /**
  * A finished workout, read-only, so browsing history can't change it by accident.
- * (Editing past workouts is M6.)
+ * "Edit workout" switches the screen to the editable overview.
  */
-function PastWorkoutDetail({ workout, items }: { workout: Workout; items: WorkoutExerciseDetail[] }) {
+function PastWorkoutDetail({
+  workout,
+  items,
+  onEdit,
+  onDelete,
+}: {
+  workout: Workout;
+  items: WorkoutExerciseDetail[];
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const c = useColors();
   const totalSets = items.reduce((n, item) => n + item.sets.length, 0);
   const endedAt = workout.endedAt ?? workout.startedAt;
@@ -206,6 +284,9 @@ function PastWorkoutDetail({ workout, items }: { workout: Workout; items: Workou
           </View>
         );
       })}
+
+      <Button title="Edit workout" variant="secondary" onPress={onEdit} />
+      <Button title="Delete workout" variant="danger" onPress={onDelete} />
     </Screen>
   );
 }

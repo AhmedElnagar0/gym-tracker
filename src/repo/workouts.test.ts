@@ -16,7 +16,15 @@ import {
   setExerciseNotes,
   setNextTimePlan,
 } from './workout-exercises';
-import { discardWorkout, finishWorkout, getActiveWorkout, getWorkoutSummary, startWorkout } from './workouts';
+import {
+  deleteWorkout,
+  discardWorkout,
+  finishWorkout,
+  getActiveWorkout,
+  getWorkoutSummary,
+  removeEmptyExercises,
+  startWorkout,
+} from './workouts';
 
 jest.mock('@/db/ids', () => ({
   newId: () => jest.requireActual<typeof import('crypto')>('crypto').randomUUID(),
@@ -120,6 +128,49 @@ describe('finishWorkout', () => {
     value(addSet(db, value(addExerciseToWorkout(db, id, BENCH_PRESS.id)), set('60', '8')));
     value(finishWorkout(db, id));
     expect(db.select().from(workouts).where(eq(workouts.id, id)).get()?.endedAt).toBe(4_000_000_000);
+  });
+});
+
+describe('editing past workouts', () => {
+  function finishedWorkout() {
+    const id = value(startWorkout(db));
+    const bench = value(addExerciseToWorkout(db, id, BENCH_PRESS.id));
+    value(addSet(db, bench, set('60', '8')));
+    value(finishWorkout(db, id));
+    return { id, bench };
+  }
+
+  it('deleteWorkout removes a finished workout with its exercises and sets', () => {
+    const { id } = finishedWorkout();
+    expect(deleteWorkout(db, id).ok).toBe(true);
+    expect(db.select().from(workouts).all()).toHaveLength(0);
+    expect(db.select().from(workoutExercises).all()).toHaveLength(0);
+    expect(db.select().from(sets).all()).toHaveLength(0);
+  });
+
+  it('deleteWorkout refuses a workout in progress (that is Discard)', () => {
+    const id = value(startWorkout(db));
+    expect(deleteWorkout(db, id)).toMatchObject({ ok: false, error: expect.stringMatching(/Discard/) });
+  });
+
+  it('a set edited in a past workout stays edited', () => {
+    const { id, bench } = finishedWorkout();
+    const setId = listWorkoutExercises(db, id)[0].sets[0].id;
+    value(updateSet(db, setId, set('62.5', '8')));
+    expect(getWorkoutExercise(db, bench)?.sets[0].weightKg).toBe(62.5);
+  });
+
+  it('removeEmptyExercises drops exercises added but not logged, and reports sets left', () => {
+    const { id } = finishedWorkout();
+    value(addExerciseToWorkout(db, id, BACK_SQUAT.id)); // added while editing, never logged
+    expect(removeEmptyExercises(db, id)).toEqual({ removed: 1, setCount: 1 });
+    expect(listWorkoutExercises(db, id).map((x) => x.exercise.name)).toEqual(['Bench Press']);
+  });
+
+  it('removeEmptyExercises reports 0 sets when everything was deleted', () => {
+    const { id, bench } = finishedWorkout();
+    deleteSet(db, getWorkoutExercise(db, bench)!.sets[0].id);
+    expect(removeEmptyExercises(db, id)).toEqual({ removed: 1, setCount: 0 });
   });
 });
 

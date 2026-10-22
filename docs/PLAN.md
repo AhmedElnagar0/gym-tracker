@@ -9,7 +9,9 @@ M3 done, 2026-10-21: all ten checkpoint steps passed; number pad size confirmed 
 keyboard now hides on drag everywhere (user request).
 M4 done, 2026-10-22: all checkpoint steps passed on the iPhone. Add-exercise by muscle group
 (user request) verified on the iPhone the same day.
-M5 done, 2026-10-22: all six checkpoint steps passed on the iPhone. Next: M6 (edit and delete).
+M5 done, 2026-10-22: all six checkpoint steps passed on the iPhone.
+M6 done, 2026-10-22: all six checkpoint steps passed on the iPhone. The MVP logging core (M0–M6)
+is complete. Next: select-on-tap in the number pad (user request), then M7 (splits).
 Decisions so far: Path A (Expo SDK 57 + App Store Expo Go), leaf-only rule relaxed,
 export/restore in MVP, kg only, Zustand dropped.
 
@@ -307,7 +309,11 @@ own history). Add-exercise also gained "By muscle" / "All exercises" (user reque
   matches what you logged.
 - ✅ Bench Press → History segment shows every session.
 
-**M6 Edit and delete.**
+**M6 Edit and delete.** Built: a finished workout's detail has "Edit workout" (the same editable
+overview as a live workout: change or delete sets, add or remove exercises, notes) and "Delete
+workout". Leaving edit mode (Done or Back) removes exercises left with no sets; if no sets remain
+at all, Done offers to delete the workout. The temporary debug line is gone. Exercise delete
+blocking and equipment locking were already built in M1. Editing start/end times stays in LATER.md.
 - ✅ Edit a past set from 60 to 62.5 → History shows 62.5, and the next "last time" uses it.
 - ✅ Delete a workout → its sets are gone (debug counts drop).
 - ✅ Deleting a used exercise is blocked ("used in 4 workouts / split Push A — archive instead?").

@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { BackupStatusCard } from '@/components/backup-status-card';
-import { DbStatusLine } from '@/components/db-status-line';
 import { Button } from '@/components/ui/button';
 import { Notice } from '@/components/ui/notice';
 import { Screen } from '@/components/ui/screen';
@@ -30,7 +29,6 @@ export default function TodayScreen() {
 
   return (
     <Screen>
-      <DbStatusLine />
       {active ? (
         <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.accent }]}>
           <Text style={[styles.cardTitle, { color: c.text }]}>Workout in progress</Text>
